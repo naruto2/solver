@@ -1,13 +1,10 @@
 #include <cuda_runtime.h>
-#include <cusolverDn.h> // dense LAPACK
-
+#include <cusolverDn.h>
 #include <cassert>
-#include <iostream>
-using namespace std;
 #include <vector>
 #include <map>
 #include "matrix.hpp"
-
+using namespace std;
 
 
 typedef struct {
@@ -35,7 +32,7 @@ T* allocate(unsigned int size) {
 }
 
 
-vector<double> LUsolve(LUparameter LUp, const vector<double> &b)
+static vector<double> LUsolve(LUparameter LUp, const vector<double> &b)
 {
   static vector<double> x(LUp.n);
   if ( LUp.handle == NULL ) {
@@ -60,23 +57,19 @@ vector<double> LUsolve(LUparameter LUp, const vector<double> &b)
              LUp.dB,    // B
              ldb,   // Bのヨコハバ
              LUp.devInfo);
-#ifdef _DEBUG
-  cudaMemcpy(&info, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
-  cout << "info = " << info << endl;
-#endif
+
   assert( status == CUSOLVER_STATUS_SUCCESS );
   double *X = (double*)malloc(sizeof(double)*LUp.n);
   // 結果を取得
   cudaMemcpy(X, LUp.dB, bytesof<double>(LUp.n*LUp.nrhs),
 	     cudaMemcpyDeviceToHost);
 
-
   for(int i=0; i<LUp.n; i++) x[i] = X[i];
   return x;
 }
 
 
-void LUdestroy(LUparameter LUp)
+static void LUdestroy(LUparameter LUp)
 {
   cudaFree(LUp.workspace);
   cudaFree(LUp.dA);
@@ -88,7 +81,7 @@ void LUdestroy(LUparameter LUp)
 }
 
 
-LUparameter LUinit(matrix<double> AA)
+static LUparameter LUinit(matrix<double> AA)
 {
   LUparameter LUp;
   int i,j, n = AA.size();
@@ -132,9 +125,6 @@ LUparameter LUinit(matrix<double> AA)
              lda, // Aのヨコハバ
              &worksize);
   assert( status == CUSOLVER_STATUS_SUCCESS );
-#ifdef _DEBUG
-  cout << "worksize = " << worksize << endl;
-#endif
 
   double* workspace = allocate<double>(worksize);
 
@@ -153,11 +143,7 @@ LUparameter LUinit(matrix<double> AA)
              workspace,
              pivot,
              devInfo);
-#ifdef _DEBUG
-  int info;
-  cudaMemcpy(&info, devInfo, sizeof(int), cudaMemcpyDeviceToHost);
-  cout << "info = " << info << endl;
-#endif
+
   assert( status == CUSOLVER_STATUS_SUCCESS );
 
   double* dB = allocate<double>(n*nrhs);

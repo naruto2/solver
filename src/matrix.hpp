@@ -10,5 +10,4 @@ public:
 };
 
 int solver(matrix<double>&A,std::vector<double>&x,const std::vector<double>&b);
-double maxerror(std::vector<double> r);
 #endif
