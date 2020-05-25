@@ -1,4 +1,5 @@
 PROG = solver
+CC   = /opt/cuda/bin/nvcc
 SRCS =  mmio.cpp \
 	maxerror.cpp \
 	solver.cpp 
@@ -11,10 +12,10 @@ LDFLAGS = -lcusolver -lm
 
 all: $(PROG)
 $(PROG) : $(OBJS)
-	/opt/cuda/bin/nvcc main.cpp $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) main.cpp $(OBJS) -o $@ $(LDFLAGS)
 
 .cpp.o:
-	/opt/cuda/bin/nvcc -c -I. $<
+	$(CC) -c -I. $<
 
 clean: ;
 	rm -f $(PROG) $(OBJS)
