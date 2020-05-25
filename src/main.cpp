@@ -2,12 +2,11 @@
 #include <vector>
 #include <cmath>
 using namespace std;
-#include "solver/sparse.h"
-using namespace sparse;
-#include "solver/operator.h"
-#include "solver/maxerror.h"
-#include "solver/mmio.h"
-#include "solver/matrixmarket.h"
+#include "matrix.hpp"
+#include "operator.h"
+#include "maxerror.h"
+#include "mmio.h"
+#include "matrixmarket.h"
 
 
 

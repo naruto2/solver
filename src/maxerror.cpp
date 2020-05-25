@@ -1,7 +1,7 @@
 #include <cmath>
 #include <iostream>
 using namespace std;
-#include "solver/sparse.h"
+#include "matrix.hpp"
 
 
 double maxerror(vector<double> r)
