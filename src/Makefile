@@ -21,5 +21,5 @@ clean: ;
 	rm -f $(PROG) $(OBJS)
 
 test: $(PROG)
-	./test.sh
+	../test/test.sh
 
