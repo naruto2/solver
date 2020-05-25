@@ -18,12 +18,10 @@ template < class Matrix, class Vector >
   for (int k=0;k<nz;k++) A[I[k]][J[k]] = val[k];
 
   for (int k=0;k<N;k++) x[k] = 1.0;
-  //CRSinit(A);
   {
     Vector t;
     b = A*x;
   }
-  //CRSdestory(A);
   for (int k=0;k<N;k++) x[k] = 0.0;
 }
 

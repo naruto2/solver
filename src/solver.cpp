@@ -4,7 +4,8 @@
 #include <cassert>
 #include <iostream>
 using namespace std;
-
+#include <vector>
+#include <map>
 #include "matrix.hpp"
 
 
@@ -176,9 +177,10 @@ LUparameter LUinit(matrix<double> AA)
 }
 
 
-void LU(matrix<double> &A, vector<double> &x, const vector<double> &b)
+int solver(matrix<double> &A, vector<double> &x, const vector<double> &b)
 {
   LUparameter LUp = LUinit(A);
   x = LUsolve(LUp,b);
   LUdestroy(LUp);
+  return 0;
 }
