@@ -1,3 +1,4 @@
+
 #include <cmath>
 #include <vector>
 #include <map>
@@ -15,7 +16,7 @@ vector<double>& operator-(vector<double>& y,  vector<double>& x) {
 
 
 vector<double>& operator*(const matrix<double>& A, vector<double>& b) {
-  long n = b.size();
+  long n = A.size();
   static vector<double> x(n);
   for (long i=0; i<n; i++ ) {
     auto Ai = A[i];
@@ -38,12 +39,15 @@ static double maxerror(vector<double> r)
 
 int main(int argc, char **argv)
 {
-  printf("%s ",argv[1]); fflush(stdout);
-
-  matrix<double> A; vector<double> r, x, b;
-  MatrixMarket(argv[1],A,x,b);
-  solver(A,x,b);
-  r = b - A*x;
-  printf("%e\n",maxerror(r));
+  matrix<double> A; vector<double> x, b, r;
+    
+  for (int i=1; i<argc; i++) {
+    A.resize(1); x.resize(1); b.resize(1); r.resize(1);
+    printf("%s ",argv[i]); fflush(stdout);
+    MatrixMarket(argv[i],A,x,b);
+    gpusolver(A,x,b);
+    r = b - A*x;
+    printf("%e\n",maxerror(r));
+  }
   return 0;
 }

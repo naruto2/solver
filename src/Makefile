@@ -1,6 +1,7 @@
 PROG = solver
 CC   = /opt/cuda/bin/nvcc
 SRCS =  mmio.cpp \
+	gpusolver.cpp \
 	solver.cpp 
 
 OBJS = $(SRCS:.cpp=.o)
@@ -11,10 +12,10 @@ LDFLAGS = -lcusolver -lm
 
 all: $(PROG)
 $(PROG) : $(OBJS)
-	$(CC) main.cpp $(OBJS) -o $@ $(LDFLAGS)
+	$(CC) -g main.cpp $(OBJS) -o $@ $(LDFLAGS)
 
 .cpp.o:
-	$(CC) -c -I. $<
+	$(CC) -g -c -I. $<
 
 clean: ;
 	rm -f $(PROG) $(OBJS)

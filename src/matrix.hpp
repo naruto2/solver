@@ -10,4 +10,5 @@ public:
 };
 
 int solver(matrix<double>&A,std::vector<double>&x,const std::vector<double>&b);
+int gpusolver(matrix<double>&A,std::vector<double>&x,const std::vector<double>&b);
 #endif

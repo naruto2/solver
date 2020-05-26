@@ -1,5 +1,5 @@
 /* 
-*   Matrix Market I/O library for ANSI C
+*   matrix Market I/O library for ANSI C
 *
 *   See http://math.nist.gov/MatrixMarket for details.
 *
@@ -132,25 +132,25 @@ int mm_read_unsymmetric_sparse(const char *fname, int *M_, int *N_, int *nz_,
 template < class Matrix, class Vector >
   void MatrixMarket(char *argv1, Matrix& A, Vector& x, Vector &b)
 {
-  static double *val; static int *I, *J;
-  int M, N, nz, ret;
+  double *val=NULL; int *I=NULL, *J=NULL;
+  int M=0, N=0, nz=0, ret=0;
 
   ret = mm_read_unsymmetric_sparse(argv1,&M,&N,&nz,&val,&I,&J);
 
-  if ( ret != 0 ) printf("mm_read_unsymmetric_sparse()=%d %s\n",ret,
-			 argv1);
-  if ( M != N )return;
+  if ( ret != 0 ) printf("mm_read_unsymmetric_sparse()=%d %s\n",ret,argv1);
+  if ( M != N ) return;
 
   A.resize(N); x.resize(N); b.resize(N);
 
   for (int k=0;k<nz;k++) A[I[k]][J[k]] = val[k];
 
   for (int k=0;k<N;k++) x[k] = 1.0;
-  {
-    Vector t;
-    b = A*x;
-  }
-  for (int k=0;k<N;k++) x[k] = 0.0;
-}
 
+  b = A*x;
+
+  for (int k=0;k<N;k++) x[k] = 0.0;
+  free(val);
+  free(I);
+  free(J);
+}
 #endif
