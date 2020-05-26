@@ -34,12 +34,13 @@ T* allocate(unsigned int size) {
 
 static vector<double> LUsolve(LUparameter LUp, const vector<double> &b)
 {
-  static vector<double> x(LUp.n);
+  static vector<double> x;
+  x.resize(LUp.n);
+
   if ( LUp.handle == NULL ) {
     for(int i=0; i<LUp.n; i++) x[i] = b[i];
     return x;
   }
-
 
   cusolverStatus_t status;
   
@@ -99,10 +100,10 @@ static LUparameter LUinit(matrix<double>& AA)
   cusolverStatus_t status;
   
   // dense LAPACK
-  cusolverDnHandle_t handle = 0;
-  status = cusolverDnCreate(&handle);
+  printf("hello\n");
+  status = cusolverDnCreate(&(LUp.handle));
+  printf("world\n");
   assert( status == CUSOLVER_STATUS_SUCCESS );
-
   double* dA = allocate<double>(n*n);
   cudaMemcpy(dA, A, bytesof<double>(n*n), cudaMemcpyHostToDevice);
   int lda = n;
@@ -110,7 +111,7 @@ static LUparameter LUinit(matrix<double>& AA)
   // 必要なバッファ量を求め、確保する
   int worksize;
   status = cusolverDnDgetrf_bufferSize(
-             handle,
+	     LUp.handle,
              n,   // 行
              n,   // 列
              dA,  // A
@@ -128,7 +129,7 @@ static LUparameter LUinit(matrix<double>& AA)
   
   // LU分解 : dAに結果が求まる(それとpivot)
   status = cusolverDnDgetrf(
-             handle,
+             LUp.handle,
              n,   // 行
              n,   // 列
              dA,  // A
@@ -146,7 +147,6 @@ static LUparameter LUinit(matrix<double>& AA)
   LUp.dB = dB;
   LUp.devInfo = devInfo;
   LUp.pivot = pivot;
-  LUp.handle = handle;
   LUp.n = n;
   LUp.nrhs = nrhs;
   LUp.lda = lda;
@@ -163,6 +163,7 @@ static void LUdestroy(LUparameter LUp)
   cudaFree(LUp.dB);              LUp.dB        = NULL;
   cudaFree(LUp.devInfo);         LUp.devInfo   = NULL;
   cusolverDnDestroy(LUp.handle); LUp.handle    = NULL;
+  cudaDeviceReset();
 }
 
 

@@ -1,4 +1,3 @@
-
 #include <cmath>
 #include <vector>
 #include <map>
@@ -8,17 +7,23 @@ using namespace std;
 
 
 vector<double>& operator-(vector<double>& y,  vector<double>& x) {
+  static vector<double> z;
   int i, n = x.size();
-  static vector<double> z(n);
+  z.resize(n);
+
   for( i = 0; i < n; i++ ) z[i] = y[i] - x[i];
   return z;
 }
 
 
-vector<double>& operator*(const matrix<double>& A, vector<double>& b) {
+vector<double>& operator*(matrix<double>& A, vector<double>& b) {
+  static vector<double> x;
   long n = A.size();
-  static vector<double> x(n);
-  for (long i=0; i<n; i++ ) {
+  x.resize(n);
+  
+  printf("operator* An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
+
+  for (int i=0; i<n; i++ ) {
     auto Ai = A[i];
     auto j = Ai.begin();
     for ( x[i]=0.0; j != Ai.end(); j++ )
@@ -42,10 +47,14 @@ int main(int argc, char **argv)
   matrix<double> A; vector<double> x, b, r;
     
   for (int i=1; i<argc; i++) {
-    A.resize(1); x.resize(1); b.resize(1); r.resize(1);
     printf("%s ",argv[i]); fflush(stdout);
+
     MatrixMarket(argv[i],A,x,b);
+    printf("MatrixMarket An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
+
     gpusolver(A,x,b);
+    printf("After GPUsolver An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
+
     r = b - A*x;
     printf("%e\n",maxerror(r));
   }

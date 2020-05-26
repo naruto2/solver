@@ -141,13 +141,14 @@ template < class Matrix, class Vector >
   if ( M != N ) return;
 
   A.resize(N); x.resize(N); b.resize(N);
-
+  printf("An = %d xn = %d, bn = %d\n",A.size(), x.size(), b.size());
+  
   for (int k=0;k<nz;k++) A[I[k]][J[k]] = val[k];
 
   for (int k=0;k<N;k++) x[k] = 1.0;
 
   b = A*x;
-
+  printf("An = %d xn = %d, bn = %d\n",A.size(), x.size(), b.size());
   for (int k=0;k<N;k++) x[k] = 0.0;
   free(val);
   free(I);
