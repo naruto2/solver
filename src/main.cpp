@@ -20,8 +20,6 @@ vector<double>& operator*(matrix<double>& A, vector<double>& b) {
   static vector<double> x;
   long n = A.size();
   x.resize(n);
-  
-  printf("operator* An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
 
   for (int i=0; i<n; i++ ) {
     auto Ai = A[i];
@@ -50,10 +48,8 @@ int main(int argc, char **argv)
     printf("%s ",argv[i]); fflush(stdout);
 
     MatrixMarket(argv[i],A,x,b);
-    printf("MatrixMarket An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
 
     gpusolver(A,x,b);
-    printf("After GPUsolver An = %d xn = %d bn=%d\n",A.size(), x.size(),b.size());
 
     r = b - A*x;
     printf("%e\n",maxerror(r));
