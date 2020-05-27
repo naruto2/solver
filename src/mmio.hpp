@@ -140,9 +140,18 @@ template < class Matrix, class Vector >
   if ( ret != 0 ) printf("mm_read_unsymmetric_sparse()=%d %s\n",ret,argv1);
   if ( M != N ) return;
 
+  for(int i=0; i<A.size(); i++) A[i].clear();
+  
+  A.resize(1); x.resize(1); b.resize(1);
   A.clear(); x.clear(); b.clear();
   A.resize(N); x.resize(N); b.resize(N);
-  
+  A.resize(1); x.resize(1); b.resize(1);
+  A.clear(); x.clear(); b.clear();
+  A.resize(N); x.resize(N); b.resize(N);
+  for(int i=0; i<N; i++) A[i].clear();
+
+    
+
   for (int k=0;k<nz;k++) A[I[k]][J[k]] = val[k];
 
   for (int k=0;k<N;k++) x[k] = 1.0;

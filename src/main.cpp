@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 
     printf("n = %d ",A.size()); fflush(stdout);
     
-    gpusolver(A,x,b);
+    solver(A,x,b);
 
     r = b - A*x;
     printf("%e\n",maxerror(r));

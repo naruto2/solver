@@ -1,7 +1,6 @@
 PROG = solver
 CC   = /opt/cuda/bin/nvcc
 SRCS =  mmio.cpp \
-	gpusolver.cpp \
 	solver.cpp 
 
 OBJS = $(SRCS:.cpp=.o)

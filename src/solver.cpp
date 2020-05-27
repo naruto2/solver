@@ -7,166 +7,78 @@
 using namespace std;
 
 
-typedef struct {
-  double *workspace;
-  double *dB;
-  int n;
-  int nrhs;
-  cusolverDnHandle_t handle;
-  double *dA;
-  int lda;
-  int *pivot;
-  int *devInfo;
-} LUparameter;
-
-
 template<typename T>
 inline size_t bytesof(unsigned int s) { return s * sizeof(T); }
+
 
 template<typename T>
 T* allocate(unsigned int size) {
   T* result = nullptr;
   cudaError_t status = cudaMalloc(&result, bytesof<T>(size));
-  assert( status == cudaSuccess );
+  //assert( status == cudaSuccess );
   return result;
 }
 
 
-static vector<double> LUsolve(LUparameter LUp, const vector<double> &b)
+static void Host2Device(double *h, double *d, unsigned int n)
 {
-  static vector<double> x(LUp.n);
-  if ( LUp.handle == NULL ) {
-    for(int i=0; i<LUp.n; i++) x[i] = b[i];
-    return x;
+  cudaMemcpy(h, d, bytesof<double>(n), cudaMemcpyHostToDevice);
+}
+
+
+static void Device2Host(double *h, double *d, unsigned int n)
+{
+  cudaMemcpy(h, d, bytesof<double>(n), cudaMemcpyDeviceToHost);
+}
+
+
+int solver(matrix<double>&A, vector<double>&x, const vector<double> &b)
+{
+  static cusolverDnHandle_t handle;
+  static cusolverStatus_t status;
+  static double *a, *dA, *dB, *workspace;
+  static int n, nrhs, lda, worksize, *pivot, *devInfo, init=1;
+
+  n = A.size();
+  nrhs    = 1;
+  lda     = n; 
+  dA      = allocate<double>(n*n);
+  dB      = allocate<double>(n*nrhs);
+  pivot   = allocate<int>(n);
+  devInfo = allocate<int>(1);
+  a       = (double*)calloc(n*n,sizeof(double));
+
+  for (int i=0; i<n; i++ ) {
+    auto Ai = A[i];
+    auto j = Ai.begin();
+    for ( ; j != Ai.end(); j++ )
+      a[i*n+j->first] = A[i][j->first];
   }
-  cusolverStatus_t status;
+
+  if (init) {
+    status = cusolverDnCreate(&handle);
+    init =0;
+  }
+
+  Host2Device(dA,a,n*n);
+
+  status = cusolverDnDgetrf_bufferSize( handle, n, n, dA, lda, &worksize);
+  workspace = allocate<double>(worksize);
   
-  cudaMemcpy(LUp.dB, &b[0], bytesof<double>(LUp.n*LUp.nrhs),
-	     cudaMemcpyHostToDevice);
-  int ldb = LUp.n;
-
-  // AX = B を解く (解XはBをoverrideする)
-  status = cusolverDnDgetrs(
-             LUp.handle,
-             CUBLAS_OP_T,
-             LUp.n,     // 行(=列)
-             LUp.nrhs,  // 問題数
-             LUp.dA,    // A
-             LUp.lda,   // Aのヨコハバ
-             LUp.pivot, // LU分解で得られたピボット
-             LUp.dB,    // B
-             ldb,   // Bのヨコハバ
-             LUp.devInfo);
-
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-  double *X = (double*)malloc(sizeof(double)*LUp.n);
-  // 結果を取得
-  cudaMemcpy(X, LUp.dB, bytesof<double>(LUp.n*LUp.nrhs),
-	     cudaMemcpyDeviceToHost);
-
-  for(int i=0; i<LUp.n; i++) x[i] = X[i];
-  return x;
-}
-
-
-static void LUdestroy(LUparameter LUp)
-{
-  cudaFree(LUp.workspace);
-  cudaFree(LUp.dA);
-  cudaFree(LUp.dB);
-  cudaFree(LUp.devInfo);
-  cudaFree(LUp.pivot);
-
-  cusolverDnDestroy(LUp.handle);
-}
-
-
-static LUparameter LUinit(matrix<double> AA)
-{
-  LUparameter LUp;
-  int i,j, n = AA.size();
-  double *A = (double*)malloc(sizeof(double)*n*n);
-
-  if (A == NULL ) {
-    LUp.handle = NULL;
-    LUp.n = n;
-    return LUp;
-  }
+  status = cusolverDnDgetrf( handle, n, n, dA, lda, workspace, pivot, devInfo);
+  Host2Device(dB, (double*)&b[0], n*nrhs);
   
-  for(i=0;i<n*n;i++) A[i] = 0.0;
-
-  for (long i=0; i<n; i++ ) {
-    auto AAi = AA[i];
-    auto j = AAi.begin();
-    for ( ; j != AAi.end(); j++ )
-      A[i*n+j->first] = AA[i][j->first];
-  }
-
-  //int n = int(X[0]);
-  int nrhs = 1;
-  cusolverStatus_t status;
-
-  // dense LAPACK
-  cusolverDnHandle_t handle;
-  status = cusolverDnCreate(&handle);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  double* dA = allocate<double>(n*n);
-  cudaMemcpy(dA, A, bytesof<double>(n*n), cudaMemcpyHostToDevice);
-  int lda = n;
-
-  // 必要なバッファ量を求め、確保する
-  int worksize;
-  status = cusolverDnDgetrf_bufferSize(
-             handle,
-             n,   // 行
-             n,   // 列
-             dA,  // A
-             lda, // Aのヨコハバ
-             &worksize);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  double* workspace = allocate<double>(worksize);
-
-  // 計算結果に関する情報
-  int* devInfo = allocate<int>(1);
-  // ピボット
-  int* pivot = allocate<int>(n);
-
-  // LU分解 : dAに結果が求まる(それとpivot)
-  status = cusolverDnDgetrf(
-             handle,
-             n,   // 行
-             n,   // 列
-             dA,  // A
-             lda, // Aのヨコハバ
-             workspace,
-             pivot,
-             devInfo);
-
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  double* dB = allocate<double>(n*nrhs);
-
-
-  LUp.workspace = workspace;
-  LUp.dA = dA;
-  LUp.dB = dB;
-  LUp.devInfo = devInfo;
-  LUp.pivot = pivot;
-  LUp.handle = handle;
-  LUp.n = n;
-  LUp.nrhs = nrhs;
-  LUp.lda = lda;
-  free(A);
-  return LUp;
-}
-
-
-int solver(matrix<double> &A, vector<double> &x, const vector<double> &b)
-{
-  LUparameter LUp = LUinit(A);
-  x = LUsolve(LUp,b);
-  LUdestroy(LUp);
+  status = cusolverDnDgetrs( handle, CUBLAS_OP_T, n, nrhs, dA, lda, pivot,
+			     dB, n, devInfo);
+  x.resize(n); 
+  Device2Host((double*)&x[0], dB, n*nrhs);
+  
+  cudaFree(dA);              
+  cudaFree(dB);              
+  cudaFree(devInfo);         
+  cudaFree(pivot);
+  cudaFree(workspace);
+  //cudaDeviceReset();
+  free(a);
   return 0;
 }
