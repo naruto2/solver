@@ -49,6 +49,8 @@ int main(int argc, char **argv)
 
     MatrixMarket(argv[i],A,x,b);
 
+    printf("n = %d ",A.size()); fflush(stdout);
+    
     gpusolver(A,x,b);
 
     r = b - A*x;

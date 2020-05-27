@@ -57,22 +57,18 @@ int gpusolver(matrix<double>&A, vector<double>&x, const vector<double> &b)
 
   if (init) {
     status = cusolverDnCreate(&handle);
-    printf("handle = %d init=%d\n",handle,init);
     init =0;
   }
   Host2Device(dA,a,n*n);
 
   status = cusolverDnDgetrf_bufferSize( handle, n, n, dA, lda, &worksize);
-  printf("hello worksize =%d n=%d dA=%p lda=%d\n",worksize,n,dA,lda);
   workspace = allocate<double>(worksize);
   
   status = cusolverDnDgetrf( handle, n, n, dA, lda, workspace, pivot, devInfo);
-  printf("world\n");
   Host2Device(dB, (double*)&b[0], n*nrhs);
   
   status = cusolverDnDgetrs( handle, CUBLAS_OP_T, n, nrhs, dA, lda, pivot,
 			     dB, n, devInfo);
-  printf("end\n");
   x.resize(n); 
   Device2Host((double*)&x[0], dB, n*nrhs);
   
