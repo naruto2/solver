@@ -9,6 +9,8 @@ using namespace std;
 vector<double>& operator-(vector<double>& y,  vector<double>& x) {
   static vector<double> z;
   int i, n = x.size();
+  z.resize(1);
+  z.clear();
   z.resize(n);
 
   for( i = 0; i < n; i++ ) z[i] = y[i] - x[i];
@@ -19,6 +21,8 @@ vector<double>& operator-(vector<double>& y,  vector<double>& x) {
 vector<double>& operator*(matrix<double>& A, vector<double>& b) {
   static vector<double> x;
   long n = A.size();
+  x.resize(1);
+  x.clear();
   x.resize(n);
 
   for (int i=0; i<n; i++ ) {
@@ -31,7 +35,7 @@ vector<double>& operator*(matrix<double>& A, vector<double>& b) {
 }
 
 
-static double maxerror(vector<double> r)
+static double maxerror(vector<double>&r)
 {
   long i;
   double max = 0.0;
@@ -48,11 +52,9 @@ int main(int argc, char **argv)
     printf("%s ",argv[i]); fflush(stdout);
 
     MatrixMarket(argv[i],A,x,b);
-
     printf("n = %d ",A.size()); fflush(stdout);
-    
-    solver(A,x,b);
 
+    solver(A,x,b);
     r = b - A*x;
     printf("%e\n",maxerror(r));
   }

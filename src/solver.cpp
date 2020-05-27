@@ -15,7 +15,7 @@ template<typename T>
 T* allocate(unsigned int size) {
   T* result = nullptr;
   cudaError_t status = cudaMalloc(&result, bytesof<T>(size));
-  //assert( status == cudaSuccess );
+  assert( status == cudaSuccess );
   return result;
 }
 
@@ -39,6 +39,10 @@ int solver(matrix<double>&A, vector<double>&x, const vector<double> &b)
   static double *a, *dA, *dB, *workspace;
   static int n, nrhs, lda, worksize, *pivot, *devInfo, init=1;
 
+  if (init) {
+    status = cusolverDnCreate(&handle);
+    init =0;
+  }
   n = A.size();
   nrhs    = 1;
   lda     = n; 
@@ -47,17 +51,13 @@ int solver(matrix<double>&A, vector<double>&x, const vector<double> &b)
   pivot   = allocate<int>(n);
   devInfo = allocate<int>(1);
   a       = (double*)calloc(n*n,sizeof(double));
-
+  if ( a == NULL ) { fprintf(stderr,"can't malloc\n"); abort(); }
+  
   for (int i=0; i<n; i++ ) {
     auto Ai = A[i];
     auto j = Ai.begin();
     for ( ; j != Ai.end(); j++ )
       a[i*n+j->first] = A[i][j->first];
-  }
-
-  if (init) {
-    status = cusolverDnCreate(&handle);
-    init =0;
   }
 
   Host2Device(dA,a,n*n);
@@ -66,6 +66,7 @@ int solver(matrix<double>&A, vector<double>&x, const vector<double> &b)
   workspace = allocate<double>(worksize);
   
   status = cusolverDnDgetrf( handle, n, n, dA, lda, workspace, pivot, devInfo);
+
   Host2Device(dB, (double*)&b[0], n*nrhs);
   
   status = cusolverDnDgetrs( handle, CUBLAS_OP_T, n, nrhs, dA, lda, pivot,

@@ -1,6 +1,9 @@
 PROG = solver
 CC   = /opt/cuda/bin/nvcc
 SRCS =  mmio.cpp \
+	plotmatrix.cpp \
+	printmatrix.cpp \
+	printvector.cpp \
 	solver.cpp 
 
 OBJS = $(SRCS:.cpp=.o)
@@ -10,7 +13,7 @@ OBJS = $(SRCS:.cpp=.o)
 LDFLAGS = -lcusolver -lm
 
 all: $(PROG)
-$(PROG) : $(OBJS)
+$(PROG) : $(OBJS) main.cpp
 	$(CC) -g main.cpp $(OBJS) -o $@ $(LDFLAGS)
 
 .cpp.o:

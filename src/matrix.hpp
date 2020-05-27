@@ -10,4 +10,7 @@ public:
 };
 
 int solver(matrix<double>&A,std::vector<double>&x,const std::vector<double>&b);
+void plotmatrix(matrix<double>&A);
+void printmatrix(matrix<double>&A);
+void printvector(const std::vector<double>&b);
 #endif
