@@ -7,22 +7,9 @@
 using namespace std;
 
 
-typedef struct {
-  double *workspace;
-  double *dB;
-  int n;
-  int nrhs;
-  cusolverDnHandle_t handle;
-  double *dA;
-  int lda;
-  int *pivot;
-  int *devInfo;
-  int worksize;
-} LUparameter;
-
-
 template<typename T>
 inline size_t bytesof(unsigned int s) { return s * sizeof(T); }
+
 
 template<typename T>
 T* allocate(unsigned int size) {
@@ -33,91 +20,69 @@ T* allocate(unsigned int size) {
 }
 
 
-static vector<double> LUsolve(LUparameter&LUp, const vector<double> &b)
+static void Host2Device(double *h, double *d, unsigned int n)
 {
-  static vector<double> x;
-  x.resize(LUp.n);
-
-  assert( LUp.handle != NULL );
-
-  cusolverStatus_t status;
-  
-  cudaMemcpy(LUp.dB, &b[0], bytesof<double>(LUp.n*LUp.nrhs),
-	     cudaMemcpyHostToDevice);
-
-  status = cusolverDnDgetrs( LUp.handle, CUBLAS_OP_T, LUp.n, LUp.nrhs,
-			     LUp.dA, LUp.lda, LUp.pivot, LUp.dB, LUp.n,
-			     LUp.devInfo);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  double *X = (double*)malloc(sizeof(double)*LUp.n);
-  cudaMemcpy(X, LUp.dB, bytesof<double>(LUp.n*LUp.nrhs),
-	     cudaMemcpyDeviceToHost);
-  for(int i=0; i<LUp.n; i++) x[i] = X[i];
-  free(X);
-  return x;
+  cudaMemcpy(h, d, bytesof<double>(n), cudaMemcpyHostToDevice);
 }
 
 
-static LUparameter &LUinit(matrix<double>& AA)
+static void Device2Host(double *h, double *d, unsigned int n)
 {
-  static LUparameter LUp;
-  cusolverStatus_t status;
-  int n = LUp.n = AA.size();
-  
-  double *A = (double*)calloc(n*n,sizeof(double));
-  assert( A != NULL );
+  cudaMemcpy(h, d, bytesof<double>(n), cudaMemcpyDeviceToHost);
+}
 
+
+int gpusolver(matrix<double>&A, vector<double>&x, const vector<double> &b)
+{
+  static cusolverDnHandle_t handle;
+  static cusolverStatus_t status;
+  static double *a, *dA, *dB, *workspace;
+  static int n, nrhs, lda, worksize, *pivot, *devInfo, init=1;
+
+  n = A.size();
+  nrhs    = 1;
+  lda     = n; 
+  dA      = allocate<double>(n*n);
+  dB      = allocate<double>(n*nrhs);
+  pivot   = allocate<int>(n);
+  devInfo = allocate<int>(1);
+  a       = (double*)calloc(n*n,sizeof(double));
+  
   for (int i=0; i<n; i++ ) {
-    auto AAi = AA[i];
-    auto j = AAi.begin();
-    for ( ; j != AAi.end(); j++ )
-      A[i*n+j->first] = AA[i][j->first];
+    auto Ai = A[i];
+    auto j = Ai.begin();
+    for ( ; j != Ai.end(); j++ )
+      a[i*n+j->first] = A[i][j->first];
   }
 
-  LUp.nrhs    = 1;
-  LUp.lda     = n; 
-  LUp.dA      = allocate<double>(n*n);
-  LUp.dB      = allocate<double>(n*LUp.nrhs);
-  LUp.pivot   = allocate<int>(n);
-  LUp.devInfo = allocate<int>(1);
+  if (init) {
+    status = cusolverDnCreate(&handle);
+    printf("handle = %d init=%d\n",handle,init);
+    init =0;
+  }
+  Host2Device(dA,a,n*n);
+
+  status = cusolverDnDgetrf_bufferSize( handle, n, n, dA, lda, &worksize);
+  printf("hello worksize =%d n=%d dA=%p lda=%d\n",worksize,n,dA,lda);
+  workspace = allocate<double>(worksize);
   
-  status = cusolverDnCreate(&LUp.handle);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  cudaMemcpy(LUp.dA, A, bytesof<double>(n*n), cudaMemcpyHostToDevice);
-  //free(A);  A = NULL;
+  status = cusolverDnDgetrf( handle, n, n, dA, lda, workspace, pivot, devInfo);
+  printf("world\n");
+  Host2Device(dB, (double*)&b[0], n*nrhs);
   
-  status = cusolverDnDgetrf_bufferSize( LUp.handle, n, n, LUp.dA,
-					LUp.lda, &LUp.worksize);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  LUp.workspace = allocate<double>(LUp.worksize);
+  status = cusolverDnDgetrs( handle, CUBLAS_OP_T, n, nrhs, dA, lda, pivot,
+			     dB, n, devInfo);
+  printf("end\n");
+  x.resize(n); 
+  Device2Host((double*)&x[0], dB, n*nrhs);
   
-  status = cusolverDnDgetrf( LUp.handle, n, n, LUp.dA, LUp.lda,
-			     LUp.workspace, LUp.pivot, LUp.devInfo);
-  assert( status == CUSOLVER_STATUS_SUCCESS );
-
-  return LUp;
-}
-
-
-static void LUdestroy(LUparameter &LUp)
-{
-  cudaFree(LUp.dA);              LUp.dA        = NULL;
-  cudaFree(LUp.dB);              LUp.dB        = NULL;
-  cudaFree(LUp.pivot);           LUp.pivot     = NULL;
-  cudaFree(LUp.devInfo);         LUp.devInfo   = NULL;
-  cudaFree(LUp.workspace);       LUp.workspace = NULL;
-  cusolverDnDestroy(LUp.handle);
-  cudaDeviceReset();
-}
-
-
-int gpusolver(matrix<double> &A, vector<double> &x,const vector<double> &b)
-{
-  LUparameter LUp = LUinit(A);
-  x = LUsolve(LUp,b);
-  LUdestroy(LUp);
+  cudaFree(workspace);       
+  cudaFree(dA);              
+  cudaFree(dB);              
+  cudaFree(devInfo);         
+  cudaFree(pivot);
+  //cusolverDnDestroy(handle);
+  //cudaDeviceReset();
+  free(a);
   return 0;
 }
